@@ -3,8 +3,6 @@ pipeline {
 
     environment {
         VENV_DIR = 'venv'
-        SLACK_CHANNEL = '#all-herowired'
-        SLACK_TOKEN = credentials('slack-token') // Add this secret in Jenkins > Credentials
     }
 
     stages {
@@ -26,8 +24,6 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo '🚀 Deploying Flask app...'
-                sh 'ls -l' // Debug: See what files exist
-                // Update "app.py" if your entrypoint has a different name
                 sh '. $VENV_DIR/bin/activate && nohup python app.py &'
             }
         }
@@ -36,20 +32,16 @@ pipeline {
     post {
         success {
             echo '✅ Build and deployment successful!'
-            sh """
-                curl -X POST -H "Authorization: Bearer $SLACK_TOKEN" -H "Content-type: application/json" \
-                --data '{"channel":"$SLACK_CHANNEL","text":"✅ Jenkins Pipeline SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}"}' \
-                https://slack.com/api/chat.postMessage
-            """
+            mail to: 'janhvidahake2001@gmail.com',
+                subject: "✅ SUCCESS: ${env.JOB_NAME} Build #${env.BUILD_NUMBER}",
+                body: "The pipeline completed successfully!\n\nCheck details at: ${env.BUILD_URL}"
         }
 
         failure {
             echo '❌ Build or tests failed. Check logs.'
-            sh """
-                curl -X POST -H "Authorization: Bearer $SLACK_TOKEN" -H "Content-type: application/json" \
-                --data '{"channel":"$SLACK_CHANNEL","text":"❌ Jenkins Pipeline FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}"}' \
-                https://slack.com/api/chat.postMessage
-            """
+            mail to: 'janhvidahake2001@gmail.com',
+                subject: "❌ FAILURE: ${env.JOB_NAME} Build #${env.BUILD_NUMBER}",
+                body: "The pipeline failed.\n\nCheck logs at: ${env.BUILD_URL}"
         }
     }
 }
