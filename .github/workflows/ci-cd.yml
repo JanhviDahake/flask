@@ -43,8 +43,10 @@ jobs:
           username: ${{ secrets.STAGING_USER }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
-            cd /path/to/staging/app
+            cd /home/ubuntu/flask
             git pull origin staging
+            python3 -m venv venv
+            source venv/bin/activate
             pip install -r requirements.txt
             sudo systemctl restart flask-staging.service
 
@@ -61,7 +63,9 @@ jobs:
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           script: |
-            cd /path/to/production/app
+            cd /home/ubuntu/flask
             git pull origin main
+            python3 -m venv venv
+            source venv/bin/activate
             pip install -r requirements.txt
             sudo systemctl restart flask-production.service
