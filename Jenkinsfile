@@ -32,16 +32,16 @@ pipeline {
     post {
         success {
             echo '✅ Build and deployment successful!'
-            mail to: 'janhvidahake2001@gmail.com',
-                subject: "✅ SUCCESS: ${env.JOB_NAME} Build #${env.BUILD_NUMBER}",
-                body: "The pipeline completed successfully!\n\nCheck details at: ${env.BUILD_URL}"
+            mail to: 'your-email@example.com',
+                 subject: "✅ Build Successful - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "Great news! The build and deployment succeeded.\n\nSee details: ${env.BUILD_URL}"
         }
 
         failure {
             echo '❌ Build or tests failed. Check logs.'
-            mail to: 'janhvidahake2001@gmail.com',
-                subject: "❌ FAILURE: ${env.JOB_NAME} Build #${env.BUILD_NUMBER}",
-                body: "The pipeline failed.\n\nCheck logs at: ${env.BUILD_URL}"
+            mail to: 'your-email@example.com',
+                 subject: "❌ Build Failed - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "Unfortunately, the build failed. Check Jenkins logs:\n\n${env.BUILD_URL}"
         }
     }
 }
