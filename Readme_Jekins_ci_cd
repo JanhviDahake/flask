@@ -1,0 +1,182 @@
+Step 1: Launch AWS EC2 Instance for Jenkins
+Login to AWS Console.
+Go to EC2 → Click Launch Instance.
+Fill details:
+Name: jenkins-flask-ci-cd
+Amazon Machine Image (AMI): Ubuntu 22.04
+Instance Type: t2.micro (Free tier)
+Key Pair: Create New or Use Existing (download .pem file).
+Allow SSH (port 22) & Custom TCP port 8080 in Security Group.
+Click Launch Instance.
+Copy Public IPv4 address of your instance. (54.70.234.79)
+
+
+Step 2: Connect to EC2 via SSH
+ssh -i "janhvi-ec2.20.pem" ubuntu@ec2-54-70-234-79.us-west-2.compute.amazonaws.com
+
+
+Step 3: Install Jenkins
+curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee \
+  /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+  https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+  /etc/apt/sources.list.d/jenkins.list > /dev/null
+sudo apt update
+sudo apt install -y jenkins
+
+
+Step 4: Start Jenkins Service
+sudo systemctl enable jenkins
+sudo systemctl start jenkins
+
+
+Step 5: Access Jenkins UI
+Visit in browser:
+http://54.70.234.79:8080
+Unlock Jenkins:
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+Paste this password on Jenkins screen.
+Select "Install Suggested Plugins" (automated).
+Create Admin User
+
+
+Step 6: Install Additional Tools
+sudo apt install -y git python3 python3-pip
+
+
+Step 7: Fork & Clone Flask App Repo
+Fork Repo:
+https://github.com/JanhviDahake/flask.git
+SSH into Jenkins server:
+git clone https://github.com/JanhviDahake/flask.git
+
+
+Step 8: Create Jenkinsfile in the Repo (Pipeline Script)
+In the root of your repository, create a file named Jenkinsfile:
+pipeline {
+    agent any
+
+    environment {
+        VENV_DIR = "venv"
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                echo '📦 Creating virtual environment and installing dependencies...'
+                sh '''
+                    /usr/bin/python3 -m venv ${VENV_DIR}
+                    . ${VENV_DIR}/bin/activate
+                    pip install -r requirements.txt
+                '''
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo '✅ Running unit tests...'
+                sh '''
+                    . ${VENV_DIR}/bin/activate
+                    pytest
+                '''
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo '🚀 Deploying Flask app...'
+                sh '''
+                    . ${VENV_DIR}/bin/activate
+                    nohup python app.py &
+                '''
+            }
+        }
+    }
+
+     post {
+        success {
+            echo '✅ Build and deployment successful!'
+            mail to: 'noreply@yourproject.test',
+                 subject: "✅ Build Successful - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "Great news! The build and deployment succeeded.\n\nSee details: ${env.BUILD_URL}",
+                 from: 'noreply@yourproject.test'
+        }
+        failure {
+            echo '❌ Build failed.'
+            mail to: 'noreply@yourproject.test',
+                 subject: "❌ Build Failed - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "Unfortunately, the build failed.\n\nCheck details: ${env.BUILD_URL}",
+                 from: 'noreply@yourproject.test'
+        }
+    }
+}
+
+
+
+Step 9: Create Jenkins Pipeline Job
+Create a New Job:
+Go to Jenkins dashboard → New Item
+Name: Flask-CI-CD-Pipeline
+Choose: Pipeline
+Scroll to Pipeline → Definition → Pipeline script from SCM
+SCM: Git
+Repo URL: https://github.com/JanhviDahake/flask.git
+Branch: main
+Script Path: Jenkinsfile
+
+
+Step 10 :Create a Mailtrap Inbox
+Sign in to Mailtrap
+Go to: https://mailtrap.io
+Sign up (free plan works fine).
+Once inside, create a new Inbox (if not already present).
+Click the inbox → Go to "SMTP Settings" tab.
+Choose "Integration" → "Java" to view SMTP credentials.
+
+
+Jenkins Email Notification Configuration
+Go to:
+Jenkins → Manage Jenkins → Configure System → E-mail Notification
+Then fill it out like this:
+Field
+Value
+SMTP server
+sandbox.smtp.mailtrap.io
+Use SMTP Authentication
+✅ Checked
+→ User Name
+your Mailtrap username
+→ Password
+your Mailtrap password
+Use TLS
+✅ Checked
+Use SSL
+❌ Unchecked
+SMTP Port
+587 or 2525 (both work)
+Reply-To Address
+test@example.com (or your dev email)
+Charset
+UTF-8
+✅ Tick: Test configuration by sending test email
+ Enter: noreply@yourproject.test 
+
+Build the pipeline
+
+
+Step 11: Trigger Pipeline Automatically (Webhook)
+GitHub → Your Repo → Settings → Webhooks → Add Webhook:
+Payload URL: http://54.70.234.79:8080/github-webhook/
+Content Type: application/json.
+Event: "Just Push events".
+In Jenkins → Pipeline Job → Configure:
+Check GitHub hook trigger for GITScm polling.
+
+
+Step 12: TEST Jenkins Pipeline
+Test 2: Auto Build (Push)
+Make any change in README.md & push to GitHub:
+git add README.md
+git commit -m "Test Webhook Build"
+git push
+Pipeline should auto-trigger on push.
